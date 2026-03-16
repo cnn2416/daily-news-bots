@@ -43,7 +43,6 @@ class TechNewsBot:
         self.seen = set()
 
     def translate_desc(self, text):
-        """局部关键词翻译：识别英文关键词并标注中文描述"""
         found = []
         for eng, cn in TRANS_MAP.items():
             if re.search(eng, text, re.IGNORECASE):
@@ -52,27 +51,30 @@ class TechNewsBot:
         return f"{prefix} 原文标题: {text}"
 
     def run(self):
+        print(f"[{datetime.now()}] 开始抓取 RSS 源...")
         for url in RSS_SOURCES:
-            feed = feedparser.parse(url)
-            for entry in feed.entries:
-                if entry.title in self.seen: continue
-                title_low = entry.title.lower()
-                desc = self.translate_desc(entry.title)
-                item = {"title": entry.title, "desc": desc, "link": entry.link}
+            try:
+                feed = feedparser.parse(url)
+                print(f"成功抓取: {url}, 发现条目: {len(feed.entries)}")
+                for entry in feed.entries:
+                    if entry.title in self.seen: continue
+                    title_low = entry.title.lower()
+                    desc = self.translate_desc(entry.title)
+                    item = {"title": entry.title, "desc": desc, "link": entry.link}
 
-                # 策略1：马斯克/特朗普专项 (最优先)
-                if any(k in title_low for k in ["musk", "tesla", "spacex"]):
-                    if len(self.musk_list) < 15: self.musk_list.append(item)
-                elif any(k in title_low for k in ["trump", "election", "maga"]):
-                    if len(self.trump_list) < 15: self.trump_list.append(item)
-                else:
-                    # 策略2：自动归类
-                    for cat, keywords in CATEGORIES.items():
-                        if any(k in title_low for k in keywords):
-                            if len(self.cat_list[cat]) < 5:
-                                self.cat_list[cat].append(item)
-                            break
-                self.seen.add(entry.title)
+                    if any(k in title_low for k in ["musk", "tesla", "spacex"]):
+                        if len(self.musk_list) < 10: self.musk_list.append(item)
+                    elif any(k in title_low for k in ["trump", "election", "maga"]):
+                        if len(self.trump_list) < 10: self.trump_list.append(item)
+                    else:
+                        for cat, keywords in CATEGORIES.items():
+                            if any(k in title_low for k in keywords):
+                                if len(self.cat_list[cat]) < 5:
+                                    self.cat_list[cat].append(item)
+                                break
+                    self.seen.add(entry.title)
+            except Exception as e:
+                print(f"抓取源 {url} 时出错: {e}")
 
     def build_report(self):
         utc_now = datetime.now(timezone.utc)
@@ -85,32 +87,56 @@ class TechNewsBot:
             md += "## 🎯 特朗普追踪\n" + "".join([f"- {n['desc']}\n  [查看详情]({n['link']})\n" for n in self.trump_list]) + "\n"
         
         md += "## 📊 行业分类简报\n"
+        has_cat = False
         for cat, items in self.cat_list.items():
             if items:
+                has_cat = True
                 md += f"### {cat}\n" + "".join([f"- {i['title']} [🔗]({i['link']})\n" for i in items])
+        
+        if not self.musk_list and not self.trump_list and not has_cat:
+            md += "> 今日暂无符合关键词的热点资讯。"
         return md
 
     def push(self, content):
+        print("\n" + "="*30 + "\n开始进入推送环节\n" + "="*30)
+        
         # 1. Server酱推送
-        sc_key = os.environ.get("SC_KEY") # 换一种读取方式试试
-    
-        print("\n--- 环境变量探测 ---")
-        all_keys = os.environ.keys()
-        print(f"是否存在 SC_KEY: {'SC_KEY' in all_keys}")
-        
+        sc_key = os.getenv("SC_KEY")
         if sc_key:
-            print(f"SC_KEY 长度: {len(sc_key)}") # 不要直接打印 key，保护隐私
-            # ... 发送逻辑 ...
+            print(f"[DEBUG] 检测到 SC_KEY，准备向 Server酱 发送请求...")
+            try:
+                # 针对微信敏感词做脱敏处理，防止静默拦截
+                safe_content = content.replace("Trump", "特*普").replace("特朗普", "特*普")
+                res = requests.post(
+                    f"https://sctapi.ftqq.com/{sc_key}.send", 
+                    data={"title": f"每日智讯 {datetime.now().strftime('%m/%d')}", "desp": safe_content},
+                    timeout=15
+                )
+                print(f"[SUCCESS] Server酱响应: {res.text}")
+            except Exception as e:
+                print(f"[ERROR] Server酱请求失败: {e}")
         else:
-            print("错误：未检测到 SC_KEY 环境变量！请检查 Github Secrets 配置。")
-        
+            print("[WARN] 未找到 SC_KEY，跳过微信推送。")
+
         # 2. Telegram推送
-        # tg_token = os.getenv("TG_TOKEN")
-        # tg_chat_id = os.getenv("TG_CHAT_ID")
-        # if tg_token and tg_chat_id:
-            # requests.post(f"https://api.telegram.org/bot{tg_token}/sendMessage", data={"chat_id": tg_chat_id, "text": content, "parse_mode": "Markdown"})
-        
-        print(content) # 控制台也打印一份结果
+        tg_token = os.getenv("TG_TOKEN")
+        tg_chat_id = os.getenv("TG_CHAT_ID")
+        if tg_token and tg_chat_id:
+            print(f"[DEBUG] 检测到 TG 配置，发送中...")
+            try:
+                res = requests.post(
+                    f"https://api.telegram.org/bot{tg_token}/sendMessage", 
+                    data={"chat_id": tg_chat_id, "text": content, "parse_mode": "Markdown"},
+                    timeout=15
+                )
+                print(f"[SUCCESS] Telegram 响应: {res.status_code}")
+            except Exception as e:
+                print(f"[ERROR] Telegram 请求失败: {e}")
+
+        # 始终在控制台打印，方便调试
+        print("\n--- 任务生成的报告预览 ---\n")
+        print(content)
+        print("\n" + "="*30 + "\n任务执行结束\n" + "="*30)
 
 if __name__ == "__main__":
     bot = TechNewsBot()
