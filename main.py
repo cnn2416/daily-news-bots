@@ -92,10 +92,20 @@ class TechNewsBot:
 
     def push(self, content):
         # 1. Server酱推送
+        def push(self, content):
         sc_key = os.getenv("SC_KEY")
-        print(f"DEBUG: SC_KEY 长度为 {len(sc_key) if sc_key else 0}") # 加入这一行
+        print(f"--- 准备推送内容 ---")
+        print(content) # 看看日志里到底生成的报告是什么样
+        
         if sc_key:
-            requests.post(f"https://sctapi.ftqq.com/{sc_key}.send", data={"title": "每日智讯", "desp": content})
+            print(f"正在调用 Server酱...")
+            res = requests.post(
+                f"https://sctapi.ftqq.com/{sc_key}.send", 
+                data={"title": "每日智讯", "desp": content}
+            )
+            print(f"Server酱服务器响应: {res.text}") # 关键：看看服务器报不报错
+        else:
+            print("错误：未检测到 SC_KEY 环境变量！请检查 Github Secrets 配置。")
         
         # 2. Telegram推送
         # tg_token = os.getenv("TG_TOKEN")
