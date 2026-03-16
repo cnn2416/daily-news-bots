@@ -98,10 +98,10 @@ class TechNewsBot:
             requests.post(f"https://sctapi.ftqq.com/{sc_key}.send", data={"title": "每日智讯", "desp": content})
         
         # 2. Telegram推送
-        tg_token = os.getenv("TG_TOKEN")
-        tg_chat_id = os.getenv("TG_CHAT_ID")
-        if tg_token and tg_chat_id:
-            requests.post(f"https://api.telegram.org/bot{tg_token}/sendMessage", data={"chat_id": tg_chat_id, "text": content, "parse_mode": "Markdown"})
+        # tg_token = os.getenv("TG_TOKEN")
+        # tg_chat_id = os.getenv("TG_CHAT_ID")
+        # if tg_token and tg_chat_id:
+            # requests.post(f"https://api.telegram.org/bot{tg_token}/sendMessage", data={"chat_id": tg_chat_id, "text": content, "parse_mode": "Markdown"})
         
         print(content) # 控制台也打印一份结果
 
