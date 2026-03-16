@@ -25,7 +25,7 @@ jobs:
 
       - name: 执行新闻爬取与推送
         env:
-          SC_KEY: ${{ secrets.SC_KEY }}
+          SC_KEY: ${{ secrets.SERVERCHAN_SENDKEY }}
           TG_TOKEN: ${{ secrets.TG_TOKEN }}
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
         run: python main.py
