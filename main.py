@@ -92,17 +92,15 @@ class TechNewsBot:
 
     def push(self, content):
         # 1. Server酱推送
-        # 注意：下面每一行相对于 def 都要缩进 4 个空格
-        sc_key = os.getenv("SC_KEY")
-        print(f"--- 准备推送内容 ---")
-        print(content) 
+        sc_key = os.environ.get("SC_KEY") # 换一种读取方式试试
+    
+        print("\n--- 环境变量探测 ---")
+        all_keys = os.environ.keys()
+        print(f"是否存在 SC_KEY: {'SC_KEY' in all_keys}")
+        
         if sc_key:
-            print(f"正在调用 Server酱...")
-            res = requests.post(
-                f"https://sctapi.ftqq.com/{sc_key}.send", 
-                data={"title": "每日智讯", "desp": content}
-            )
-            print(f"Server酱服务器响应: {res.text}")
+            print(f"SC_KEY 长度: {len(sc_key)}") # 不要直接打印 key，保护隐私
+            # ... 发送逻辑 ...
         else:
             print("错误：未检测到 SC_KEY 环境变量！请检查 Github Secrets 配置。")
         
