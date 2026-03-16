@@ -93,6 +93,7 @@ class TechNewsBot:
     def push(self, content):
         # 1. Server酱推送
         sc_key = os.getenv("SC_KEY")
+        print(f"DEBUG: SC_KEY 长度为 {len(sc_key) if sc_key else 0}") # 加入这一行
         if sc_key:
             requests.post(f"https://sctapi.ftqq.com/{sc_key}.send", data={"title": "每日智讯", "desp": content})
         
